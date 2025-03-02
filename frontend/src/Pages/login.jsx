@@ -2,9 +2,50 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFacebook, faGoogle } from "@fortawesome/free-brands-svg-icons";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import axios from "axios";
+
 
 import Button from "../button";
 const login = () => {
+
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        if(name === 'email'){
+            setEmail(value);
+        }
+        else if(name === 'password'){
+            setPassword(value);
+        }
+        // console.log(name,value);
+    };
+    const handleLogin = async (e) =>{
+        e.preventDefault();
+        //Check if Data exist
+        if(email.length==0 || password.length==0){
+            alert('All fields are required');
+            return;
+        }
+        try{
+            console.log("try")
+            const response = await axios.post('http://localhost:5000/api/auth/login', {
+                email,
+                password
+            })
+            // console.log('Login successful:', response.data);
+            navigate('/');
+        }catch (error) {
+            // Handle login error
+            // console.error('Login error:', error.response ? error.response.data : error.message);
+            setError(error.response?.data?.message || 'Login failed');
+            
+        }
+    }
+
     const navigate = useNavigate();
     return (
         <div className="flex m-0 p-0">
@@ -27,6 +68,8 @@ const login = () => {
                                 id="email"
                                 className=" p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Enter your email"
+                                name="email"
+                                onChange={handleChange}
                             />
                         </div>
                         <div className="flex flex-col gap-2 w-[100%]">
@@ -36,11 +79,16 @@ const login = () => {
                                 id="password"
                                 className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Enter your password"
+                                onChange={handleChange}
+                                name="password"
                             />
                         </div>
+                        {error && (
+                            <div className="text-red-500">{error}</div>
+                        )}
                         <Button 
-                            children={"Sign In / Login"}
-                            onClick={() => {}} 
+                            children={"Login"}
+                            onClick={handleLogin} 
                             className="mt-1 rounded-full"
                         />
                     </div>

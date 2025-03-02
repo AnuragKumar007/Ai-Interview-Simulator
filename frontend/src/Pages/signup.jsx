@@ -5,16 +5,22 @@ import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import Button from "../button";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-
-
-const signup = () => {
+const Signup = () => {
     const navigate = useNavigate();
     // State management for username availability checking
     const [username, setUsername] = useState(''); // Store username input
     const [isChecking, setIsChecking] = useState(false); // Loading state for availability check
     const [isAvailable, setIsAvailable] = useState(null); // null = not checked, true = available, false = taken
     const [timeoutId, setTimeoutId] = useState(null); // For debouncing API calls
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
+    });
+    const [error, setError] = useState('');
 
     /**
      * Simulates an API call to check username availability
@@ -40,6 +46,7 @@ const signup = () => {
     const handleUsernameChange = async (e) => {
         const newUsername = e.target.value;
         setUsername(newUsername);
+        console.log(e, e.target);
         
         // Clear previous timeout to implement debouncing
         if (timeoutId) clearTimeout(timeoutId);
@@ -62,6 +69,60 @@ const signup = () => {
 
         setTimeoutId(newTimeoutId);
     };
+
+    /**
+     * Handles changes to the form data (email, password, confirmPassword)
+     * Updates the state with the new values
+     * @param {Event} e - Input change event
+     * 
+     * Example:
+     * If the input field is <input name="email" value="user@example.com" />,
+     * then the state will be updated with { email: 'user@example.com' }
+     */
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prevState => ({
+            ...prevState,
+            [name]: value
+        }));
+
+        // If username is being changed, trigger availability check
+        if (name === 'username') {
+            handleUsernameChange(e);
+        }
+    };
+
+    /**
+     * Handles form submission
+     * @param {Event} e - Form submit event
+     */
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        // Validate form data
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        try {
+            // Send signup data to backend
+            const response = await axios.post('http://localhost:8080/api/auth/signup', {
+                username: formData.username,
+                email: formData.email,
+                password: formData.password
+            });
+
+            // Handle successful signup
+            console.log('Signup successful:', response.data);
+            navigate('/'); // Redirect to login page after successful signup
+        } catch (error) {
+            // Handle signup error
+            console.error('Signup error:', error.response ? error.response.data : error.message);
+            setError(error.response?.data?.message || 'Signup failed');
+        }
+    };  
 
     return (
         <div className="flex m-0 p-0">
@@ -102,13 +163,14 @@ const signup = () => {
                                 <input 
                                     type="text" 
                                     id="username"
-                                    value={username}
-                                    onChange={handleUsernameChange}
+                                    name="username"
+                                    value={formData.username}
+                                    onChange={handleChange}
                                     className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
                                     placeholder="Choose a username"
                                 />
                                 {/* Availability Status Indicator */}
-                                {username.length >= 3 && (
+                                {formData.username.length >= 3 && (
                                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                                         {isChecking ? (
                                             <span className="text-gray-500">Checking...</span>
@@ -128,6 +190,9 @@ const signup = () => {
                             <input 
                                 type="email" 
                                 id="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
                                 className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Enter your email"
                             />
@@ -139,6 +204,9 @@ const signup = () => {
                             <input 
                                 type="password" 
                                 id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
                                 className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Enter your password"
                             />
@@ -150,15 +218,23 @@ const signup = () => {
                             <input 
                                 type="password" 
                                 id="confirmPassword"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
                                 className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Confirm your password"
                             />
                         </div>
 
+                        {/* Error Message */}
+                        {error && (
+                            <div className="text-red-500">{error}</div>
+                        )}
+
                         {/* Submit Button */}
                         <Button 
                             children={"Sign Up"} 
-                            onClick={() => {}} 
+                            onClick={handleSubmit} 
                             className="mt-1 rounded-full"
                         />
                     </div>
@@ -168,4 +244,4 @@ const signup = () => {
     )
 }
 
-export default signup;
+export default Signup;
