@@ -13,7 +13,7 @@ const hero = () => {
             <div className="mt-8">
                 <Button children={"Start Practicing for Free"} 
                 onClick={()=>{navigate('/signup')}} // Change krna hai
-                className={"mt-4 rounded-lg"}/>
+                className={"px-10 py-3 bg-gradient-to-r from-[#16A085] to-[#2C3E50] text-white text-lg font-bold rounded-lg hover:from-[#2C3E50] hover:to-[#16A085] transition-all duration-300 shadow-lg transform hover:scale-105 "}/>
             </div>
         </div>
     )

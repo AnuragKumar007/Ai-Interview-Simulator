@@ -28,10 +28,30 @@ const JobDescriptionUpload = ({ setQuestions }) => {
       if (!response.data || !response.data.questions) {
         throw new Error('Invalid response format - missing questions');
       }
+      // cursor changes
+      // Process questions to ensure they are in the correct format
+      let processedQuestions = response.data.questions;
+      
+      // If we received a single string that looks like JSON, try to parse it
+      if (processedQuestions.length === 1 && 
+          typeof processedQuestions[0] === 'string' && 
+          processedQuestions[0].trim().startsWith('[') && 
+          processedQuestions[0].trim().endsWith(']')) {
+        try {
+          const parsed = JSON.parse(processedQuestions[0]);
+          if (Array.isArray(parsed)) {
+            processedQuestions = parsed;
+          }
+        } catch (e) {
+          console.error('Failed to parse question JSON:', e);
+          // Keep the original if parsing fails
+        }
+      }
+      //cursor changes end
       
       setUploadStatus('Submission successful!');
-      console.log('About to navigate with questions:', response.data.questions);
-      navigate('/questions', { state: { questions: response.data.questions } });
+      console.log('About to navigate with questions:', processedQuestions);
+      navigate('/questions', { state: { questions: processedQuestions } });
       console.log('Navigation called');
     } catch (error) {
       console.error('Error details:', {

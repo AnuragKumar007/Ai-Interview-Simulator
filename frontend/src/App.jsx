@@ -13,6 +13,7 @@ import Signup from './Pages/signup'
 import About from './Pages/about'
 import Contact from './Pages/contact'
 import Questions from './Pages/questions'
+import Analytics from './Pages/analytics'
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Home component with all landing page sections
@@ -40,6 +41,7 @@ function App() {
       <Route path="/about" element={<About/>} />
       <Route path="/contact" element={<Contact/>} />
       <Route path="/questions" element={<Questions/>} />
+      <Route path="/analytics" element={<Analytics/>} />
       {/* Redirect all unknown routes to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

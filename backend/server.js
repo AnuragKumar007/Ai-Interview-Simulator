@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const questionGeneratorService = require('./services/QuestionGenerator');
+const interviewAnalyzerService = require('./services/InterviewAnalyzer');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -25,6 +26,8 @@ mongoose.connect('mongodb://localhost:27017/interview_simulator', {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/services', questionGeneratorService);
+app.use('/api/services', interviewAnalyzerService);
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

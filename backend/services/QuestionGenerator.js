@@ -21,17 +21,53 @@ router.post('/questionGenerator', async (req, res) => {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
-        console.log(text);
-        console.log(result);
-        console.log(response);
+        console.log("text---",text);
+        console.log("result----",result);
+        console.log("response----",response);
         
         try {
             // Try to parse the response as JSON
-            const questions = JSON.parse(text);
+            //cursor changes
+            let questions = [];
+            
+            // Check if the text looks like JSON (starts with [ and ends with ])
+            if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
+                try {
+                    questions = JSON.parse(text);
+                } catch (jsonError) {
+                    console.error('Failed to parse direct JSON:', jsonError);
+                    // If direct parsing fails, try to extract JSON from the text
+                    const jsonMatch = text.match(/\[[\s\S]*\]/);
+                    if (jsonMatch) {
+                        try {
+                            questions = JSON.parse(jsonMatch[0]);
+                        } catch (extractError) {
+                            console.error('Failed to parse extracted JSON:', extractError);
+                        }
+                    }
+                }
+            }
+            
+            // If we still don't have valid questions, split by quotes and newlines
+            if (!Array.isArray(questions) || questions.length === 0) {
+                // Try to extract individual questions by splitting the text
+                questions = text
+                    .replace(/```json|```/g, '') // Remove markdown code blocks if present
+                    .split(/",\s*"/) // Split by quote-comma-quote pattern
+                    .map(q => q.replace(/^\s*\[\s*"|"\s*\]\s*$/g, '').trim()) // Clean up brackets and quotes
+                    .filter(q => q.length > 0); // Remove empty strings
+            }
+            
+            // If we still don't have questions, use the text as a single question
+            if (!Array.isArray(questions) || questions.length === 0) {
+                questions = [text];
+            }
+            //cursor changes end
+            
             return res.json({ questions });
         } catch (parseError) {
-            // If parsing fails, send the text as a single question
-            console.error('Failed to parse JSON response:', parseError);
+            // If all parsing fails, send the text as a single question
+            console.error('Failed to parse response:', parseError);
             return res.json({ questions: [text] });
         }
 
