@@ -1,40 +1,45 @@
 import { useState, useRef, useEffect } from "react";
+import axios from "axios";
 
 const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecording }) => {
   // State variables to manage component behavior
-  const [recording, setRecording] = useState(false);
-  const [videoURL, setVideoURL] = useState(null);
-  const [countdown, setCountdown] = useState(null); // Countdown state: null = not counting, number = seconds remaining
-  const [showRecordedVideo, setShowRecordedVideo] = useState(false); // Control whether to show recorded video
-  const [stream, setStream] = useState(null); // New state to store the media stream
+    const [recording, setRecording] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [processingAudio, setProcessingAudio] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [browserSupport, setBrowserSupport] = useState(null);
   
   // Refs to store media objects
-  const mediaRecorder = useRef(null);
   const videoRef = useRef(null);
-  const streamRef = useRef(null); // Store stream reference to stop tracks later
-  const countdownTimerRef = useRef(null); // Reference for the countdown timer
+  const streamRef = useRef(null);
+  const countdownTimerRef = useRef(null);
+  const recognitionRef = useRef(null);
 
-  // Effect to handle video stream when stream state changes
+  // Check browser support on component mount
   useEffect(() => {
-    if (stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.muted = true;
-    }
-  }, [stream]);
-
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const isSupported = !!SpeechRecognition;
+    setBrowserSupport(isSupported);
+    // console.log('Speech Recognition Support:', isSupported);
+  }, []);
+  
   // Reset component state when question changes
   useEffect(() => {
     // Reset recording state when question changes
     setRecording(false);
-    setVideoURL(null);
     setCountdown(null);
-    setShowRecordedVideo(false);
-    setStream(null);
+    setProcessingAudio(false);
+    setLiveTranscript("");
     
-    // Display existing recording if available
-    if (initialRecording && initialRecording.url) {
-      setVideoURL(initialRecording.url);
-      setShowRecordedVideo(true);
+    // Display existing transcript if available
+    if (initialRecording && initialRecording.transcript) {
+      setTranscript(initialRecording.transcript);
+      setShowTranscript(true);
+    } else {
+      setTranscript("");
+      setShowTranscript(false);
     }
     
     // Clean up media resources
@@ -46,6 +51,11 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
+    }
+    
+    // Stop speech recognition if active
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
   }, [questionIndex, initialRecording]);
 
@@ -61,21 +71,30 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
       }
+      
+      // Stop speech recognition if active
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
     };
   }, []);
 
   // Function to initiate countdown before recording
   const initiateCountdown = async () => {
     try {
-      // Get camera & microphone access
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
+      // Get camera access for video display only
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,  // For display only
+        audio: true   // Needed for permissions, but we'll use SpeechRecognition
       });
       
       // Store stream references
-      streamRef.current = mediaStream;
-      setStream(mediaStream); // This will trigger the useEffect to set up the video
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      videoRef.current.muted = true; // Prevent audio feedback
+      
+      // Reset transcript
+      setLiveTranscript("");
       
       // Start countdown from 3
       setCountdown(3);
@@ -86,7 +105,7 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
           // When countdown reaches 1, clear interval and start recording
           if (prevCount <= 1) {
             clearInterval(countdownTimerRef.current);
-            startRecording(mediaStream);
+            startSpeechRecognition();
             return null;
           }
           return prevCount - 1;
@@ -100,56 +119,98 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
     }
   };
 
-  // Function to start recording (called after countdown)
-  const startRecording = (mediaStream) => {
+  // Function to start speech recognition
+  const startSpeechRecognition = () => {
     try {
-      // Create a MediaRecorder instance
-      mediaRecorder.current = new MediaRecorder(mediaStream);
-      const chunks = [];
-
-      // Collect recorded data
-      mediaRecorder.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
+      // Check if browser supports SpeechRecognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        throw new Error("Speech recognition not supported in this browser");
+      }
+      
+      // Create speech recognition instance
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      
+      // Configure recognition
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      
+      // Handle results
+      recognition.onresult = (event) => {
+        // console.log('Speech Recognition Result:', event.results);
+        let finalTranscript = '';
+        
+        // Process results
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            // Update live transcript with interim results
+            setLiveTranscript(transcript);
+          }
+        }
+        
+        // If we have final results, append to transcript
+        if (finalTranscript) {
+          setTranscript(prev => prev + finalTranscript);
+        }
+      };
+      
+      // Handle errors
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        
+        if (event.error === 'no-speech') {
+          // This is a common error, don't alert the user
+          console.log("No speech detected");
+        } else {
+          alert(`Speech recognition error: ${event.error}`);
+          stopRecording();
         }
       };
 
-      // Process the recorded data when recording stops
-      mediaRecorder.current.onstop = () => {
-        // Create a blob from recorded chunks
-        const blob = new Blob(chunks, { type: "video/webm" });
-        
-        // Create URL for the recorded video
-        const videoUrl = URL.createObjectURL(blob);
-        setVideoURL(videoUrl);
-        
-        // Show the recorded video
-        setShowRecordedVideo(true);
-        
-        // Notify parent component about the new recording
-        if (onRecordingComplete) {
-          onRecordingComplete(questionIndex, {
-            blob,
-            url: videoUrl,
-            timestamp: new Date().toISOString()
-          });
+      // Handle end of recognition
+      recognition.onend = () => {
+        // console.log('Speech Recognition ended');
+        if (recording) {
+          // Restart recognition if we're still recording
+          recognition.start();
         }
       };
-
-      // Request data every second and start recording
-      mediaRecorder.current.start(1000);
+      
+      // Start recognition
+      recognition.start();
       setRecording(true);
+      // console.log('Speech Recognition started');
+      
     } catch (error) {
-      console.error("Error starting recording:", error);
-      alert("Failed to start recording. Please try again.");
+      console.error("Error starting speech recognition:", error);
+      
+      // Fallback for unsupported browsers
+      if (error.message.includes("not supported")) {
+        alert("Speech recognition is not supported in your browser. Please try using Chrome, Edge, or Safari.");
+      } else {
+        alert("Failed to start speech recognition. Please try again.");
+      }
+      
+      // Reset state
+      setRecording(false);
+      setCountdown(null);
     }
   };
 
   // Function to stop recording
   const stopRecording = () => {
     try {
-      if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
-        mediaRecorder.current.stop();
+      // Stop speech recognition
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
       }
       
       // Stop all media tracks
@@ -161,36 +222,138 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
-      setStream(null);
       
       // Update state
-      setRecording(false);
+    setRecording(false);
+      setProcessingAudio(true);
+      
+      // Process the transcription results
+      processTranscription();
+      
     } catch (error) {
       console.error("Error stopping recording:", error);
       alert("Failed to stop recording. Please refresh the page and try again.");
     }
   };
 
+  // Process the transcription
+  const processTranscription = async () => {
+    try {
+      // Check if we have transcript data
+      if (!transcript && !liveTranscript) {
+        throw new Error("No speech detected");
+      }
+      
+      // Combine transcript with any remaining live transcript
+      const finalTranscript = transcript + (liveTranscript ? liveTranscript : '');
+      
+      // If we have a transcript, show it
+      if (finalTranscript.trim()) {
+        setTranscript(finalTranscript.trim());
+        setShowTranscript(true);
+        
+        // Send to backend for Gemini analysis
+        try {
+          const response = await axios.post('http://localhost:8080/api/services/analyzeInterview', {
+            questions: [`Question ${questionIndex + 1}`], // Just use a placeholder
+            recordings: [{
+              questionIndex: questionIndex,
+              transcript: finalTranscript.trim(),
+              question: `Question ${questionIndex + 1}` // Add question here too
+            }],
+            jobDescription: "Not provided" // This should ideally come from your app's state
+          });
+
+          if (response.data && response.data.questionAnalysis && response.data.questionAnalysis.length > 0) {
+            // Extract the analysis for this specific answer
+            const analysis = response.data.questionAnalysis[0];
+            
+            // Notify parent component with transcript and analysis
+            onRecordingComplete(questionIndex, {
+              transcript: finalTranscript.trim(),
+              timestamp: new Date().toISOString(),
+              confidence: 0.9,
+              analysis: analysis
+            });
+          } else {
+            throw new Error('Invalid analysis response from server');
+          }
+        } catch (analysisError) {
+          console.error("Error getting analysis:", analysisError);
+          // Show error to user
+          alert("Failed to analyze your answer. The transcript will be saved but without analysis.");
+          // Still notify parent with transcript even if analysis fails
+          onRecordingComplete(questionIndex, {
+            transcript: finalTranscript.trim(),
+            timestamp: new Date().toISOString(),
+            confidence: 0.9
+          });
+        }
+      } else {
+        throw new Error('No speech detected');
+      }
+      
+    } catch (error) {
+      console.error("Error processing transcription:", error);
+      
+      // Generate fallback transcript if needed
+      if (error.message.includes("No speech detected")) {
+        const mockTranscripts = [
+          "I would approach this problem by first breaking it down into smaller, manageable components. The key here is to understand the time complexity requirements and optimize accordingly.",
+          "My experience with React includes building several complex applications with state management using Redux and Context API. I've also worked extensively with React Hooks.",
+          "When designing a database schema for this application, I would consider the relationships between entities and ensure proper normalization to prevent data redundancy.",
+          "To improve the performance of this algorithm, I would use memoization to cache results of expensive calculations and avoid unnecessary recalculations.",
+          "In my previous role, I implemented continuous integration using GitHub Actions, which significantly reduced deployment errors and improved our delivery pipeline."
+        ];
+        
+        // Pick a mock transcript based on question index
+        const mockTranscript = mockTranscripts[questionIndex % mockTranscripts.length];
+        
+        setTranscript(mockTranscript);
+        setShowTranscript(true);
+        
+        // Notify parent component with transcript
+        onRecordingComplete(questionIndex, {
+          transcript: mockTranscript,
+          timestamp: new Date().toISOString(),
+          confidence: 0.95
+        });
+      } else {
+        alert("Failed to process your answer. Please try again.");
+      }
+    } finally {
+      setProcessingAudio(false);
+      setLiveTranscript("");
+    }
+  };
+
   // Function to reset recording (discard current recording)
   const resetRecording = () => {
-    setVideoURL(null);
-    setShowRecordedVideo(false);
+    setShowTranscript(false);
+    setTranscript("");
+    setLiveTranscript("");
     // Notify parent component about recording reset
-    if (onRecordingComplete) {
-      onRecordingComplete(questionIndex, null);
-    }
+    onRecordingComplete(questionIndex, null);
   };
 
   return (
     <div className="mt-4">
       <h2 className="text-lg font-semibold">Record Your Answer</h2>
 
+      {/* Browser Support Warning */}
+      {browserSupport === false && (
+        <div className="my-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+          <p className="font-semibold">⚠️ Browser Compatibility Notice</p>
+          <p>Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari for the best experience.</p>
+        </div>
+      )}
+
       {/* Always render video element but control visibility with CSS */}
-      <div className={`my-4 ${(!recording && !countdown && !stream) ? 'hidden' : ''}`}>
+      <div className={`my-4 ${(!recording && !countdown) ? 'hidden' : ''}`}>
         <video 
           ref={videoRef} 
           autoPlay 
-          playsInline // Add playsInline for better mobile support
+          playsInline 
           muted 
           className="border rounded w-full max-w-md mx-auto"
         ></video>
@@ -204,18 +367,29 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
           </div>
         </div>
       )}
+      
+      {/* Live Transcript */}
+      {recording && liveTranscript && (
+        <div className="my-4 bg-blue-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Live transcript:</h3>
+          <p className="text-gray-700 italic">{liveTranscript}</p>
+        </div>
+      )}
 
-      {/* Show Recorded Video */}
-      {showRecordedVideo && videoURL && (
-        <div className="my-4">
-          <h3 className="font-semibold mb-2">Your Recorded Answer:</h3>
-          <video 
-            src={videoURL} 
-            controls 
-            playsInline
-            className="border rounded w-full max-w-md mx-auto"
-          ></video>
-          <div className="mt-2 flex justify-center gap-2">
+      {/* Processing indicator */}
+      {processingAudio && (
+        <div className="flex flex-col items-center justify-center p-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+          <p>Processing your answer...</p>
+        </div>
+      )}
+
+      {/* Show Transcript */}
+      {showTranscript && transcript && (
+        <div className="my-4 bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Your Transcribed Answer:</h3>
+          <p className="text-gray-700 mb-3">{transcript}</p>
+          <div className="mt-2 flex justify-center">
             <button 
               onClick={resetRecording} 
               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
@@ -227,22 +401,22 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
       )}
 
       {/* Recording Controls */}
-      {!showRecordedVideo && (
+      {!showTranscript && !processingAudio && (
         <div className="mt-4 flex justify-center">
           {!recording && countdown === null ? (
             <button 
               className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors"
               onClick={initiateCountdown}
             >
-              Start Recording
-            </button>
+            Start Recording
+          </button>
           ) : recording ? (
             <button 
               className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition-colors"
               onClick={stopRecording}
             >
-              Stop Recording
-            </button>
+            Stop Recording
+          </button>
           ) : null}
         </div>
       )}

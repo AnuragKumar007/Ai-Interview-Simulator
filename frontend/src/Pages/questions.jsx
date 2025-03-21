@@ -93,28 +93,41 @@ const Questions = () => {
     setIsSubmitting(true);
     
     try {
+      // Format recordings data properly
+      const formattedRecordings = Object.keys(recordings).map(index => ({
+        questionIndex: parseInt(index),
+        question: processedQuestions[parseInt(index)],
+        transcript: recordings[index].transcript || '',
+        timestamp: recordings[index].timestamp
+      }));
+
+      // Get job description from location state
+      // Get job description from location state which should be passed from jobDescriptionUpload.jsx
+      // when navigating to this page. If not found, try to get it from the questions array
+      const jobDescription = location.state?.jobDescription || location.state?.questions?.jobDescription;
+      if (!jobDescription) {
+        console.warn('No job description found in location state');
+      }
+
       // Prepare data for analysis
       const interviewData = {
-        questions: processedQuestions,
-        recordings: Object.keys(recordings).map(index => ({
-          questionIndex: parseInt(index),
-          question: processedQuestions[parseInt(index)],
-          recordingUrl: recordings[index].url,
-          timestamp: recordings[index].timestamp
-        }))
+        questions: processedQuestions.map((q, index) => ({
+          text: q,
+          index: index
+        })),
+        recordings: formattedRecordings,
+        jobDescription: jobDescription // Include job description in interviewData
       };
       
-      // Log the data that would be sent (for debugging)
-      console.log('Interview data for analysis:', interviewData);
+      // Log the data that will be sent for analysis
+      // console.log('Interview data for analysis:', interviewData);
       
       // Navigate to analytics page with interview data
-      // In a real implementation, you would send this data to the backend
-      // and then navigate to the analytics page
       navigate('/analytics', { 
         state: { 
           interviewData,
           questions: processedQuestions,
-          jobDescription: location.state?.jobDescription || "Not specified"
+          jobDescription: jobDescription || "Please provide a job description" // More informative default
         } 
       });
       

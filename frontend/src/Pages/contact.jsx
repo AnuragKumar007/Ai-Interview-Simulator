@@ -36,14 +36,14 @@ const Contact = () => {
         {
             icon: faEnvelope,
             title: "Email",
-            details: "support@interviewsimulator.com",
+            details: "support@interviewbuddy.com",
             description: "We'll respond within 24 hours"
         },
         {
             icon: faLocationDot,
             title: "Office",
-            details: "123 Innovation Street",
-            description: "Silicon Valley, CA 94025"
+            details: "HazratGanj, Lucknow",
+            description: "Uttar Pradesh, India"
         }
     ];
 

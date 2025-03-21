@@ -23,11 +23,11 @@ const feedbackPopup = () => {
       <Button children={<FontAwesomeIcon icon={faFaceSmile} 
       className='text-2xl'/>} 
       onClick={() => setIsOpen(true)} 
-      className={"fixed bottom-6 right-3 rounded-full"}/>
+      className={"fixed bottom-6 right-3 rounded-full z-50"}/>
 
       {/* Popup Modal */}
       {isOpen && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-80">
             <h2 className="text-lg font-semibold mb-3">Rate Your Experience</h2>
 

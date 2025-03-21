@@ -2,6 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+// Helper function to format improvement tips
+const formatImprovementTips = (tips) => {
+  if (!tips) return [];
+  
+  // Check if tips already contain numbered points (1., 2., etc.)
+  if (tips.match(/\d+\.\s+\*\*[^*]+\*\*/)) {
+    console.log("formatting");
+    // Split by numbered points and filter empty entries
+    const points = tips.split(/(\d+\.\s+)/)
+      .filter(point => point.trim())
+      .map(point => {
+        // Clean up the point
+        if (point.match(/^\d+\.\s+$/)) {
+          // This is just a number prefix, skip it
+          return null;
+        }
+        
+        // Convert **Title:** format to bold HTML
+        const formatted = point
+          .replace(/\*\*([^*]+)\*\*/g, '<i>$1</i>')
+          .trim();
+          
+        return formatted;
+      })
+      .filter(point => point !== null);
+    
+    return points;
+  }
+  
+  // For tips without clear formatting, just return as a single item
+  return [tips];
+};
+
 const Analytics = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -12,7 +45,7 @@ const Analytics = () => {
   // Get interview data from location state
   const interviewData = location.state?.interviewData || null;
   const questions = location.state?.questions || [];
-  const jobDescription = location.state?.jobDescription || "Not specified";
+  const jobDescription = location.state?.jobDescription || location.state?.interviewData?.jobDescription || "Please provide a job description";
   
   // Fetch analysis from Gemini when component mounts
   useEffect(() => {
@@ -22,51 +55,34 @@ const Analytics = () => {
       setLoading(false);
       return;
     }
+
+    // Check if we have recordings
+    if (!interviewData.recordings || interviewData.recordings.length === 0) {
+      setError("No interview recordings found. Please complete the interview questions.");
+      setLoading(false);
+      return;
+    }
     
     // Define async function to get analysis
     const getAnalysis = async () => {
       try {
         setLoading(true);
         
-        // In a real implementation, this would be an API call to your backend
-        // which would then call Gemini for analysis
-        // For demo purposes, we'll simulate the analysis with a timeout
+        // Make actual API call to backend
+        const response = await axios.post('http://localhost:8080/api/services/analyzeInterview', {
+          questions: interviewData.questions,
+          recordings: interviewData.recordings,
+          jobDescription: jobDescription
+        });
         
-        // Mock API call (replace with actual API call to backend)
-        // const response = await axios.post('/api/services/analyzeInterview', {
-        //   questions: interviewData.questions,
-        //   recordings: interviewData.recordings,
-        //   jobDescription: jobDescription
-        // });
+        if (!response.data || !response.data.overallScore) {
+          throw new Error('Invalid analysis response from server');
+        }
         
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        // Mock analysis data (this would come from your backend)
-        const mockAnalysis = {
-          overallScore: 85,
-          strengths: [
-            "Strong technical knowledge demonstrated in most answers",
-            "Clear communication style",
-            "Good problem-solving approach"
-          ],
-          weaknesses: [
-            "Some hesitation in the response to question 2",
-            "Could provide more specific examples in answers"
-          ],
-          questionAnalysis: interviewData.recordings.map((recording, index) => ({
-            questionIndex: recording.questionIndex,
-            question: recording.question,
-            score: Math.floor(70 + Math.random() * 30), // Random score between 70-100
-            feedback: `Your answer was ${Math.random() > 0.5 ? 'well structured' : 'clear and concise'}.`,
-            improvementTips: `Consider adding more ${Math.random() > 0.5 ? 'specific examples' : 'technical details'} in your response.`
-          }))
-        };
-        
-        setAnalysis(mockAnalysis);
+        // Set the analysis data from the response
+        setAnalysis(response.data);
         setLoading(false);
       } catch (err) {
-        console.error('Error getting analysis:', err);
         setError('Failed to get analysis. Please try again later.');
         setLoading(false);
       }
@@ -163,13 +179,13 @@ const Analytics = () => {
           {analysis?.questionAnalysis.map((qa, index) => (
             <div key={index} className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
               <div className="bg-gray-50 p-4 border-b border-gray-200">
-                <h3 className="font-medium">Question {qa.questionIndex + 1}</h3>
+                <h3 className="font-medium"><strong>Question {qa.questionIndex + 1}</strong></h3>
                 <p className="text-gray-700">{qa.question}</p>
               </div>
               
               <div className="p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium">Performance Score:</span>
+                  <span className="font-medium"><strong>Performance Score:</strong></span>
                   <span className={`px-3 py-1 rounded-full text-sm 
                     ${qa.score >= 90 ? 'bg-green-100 text-green-800' : 
                       qa.score >= 75 ? 'bg-blue-100 text-blue-800' : 
@@ -180,13 +196,20 @@ const Analytics = () => {
                 </div>
                 
                 <div className="mb-2">
-                  <span className="font-medium">Feedback:</span>
+                  <span className="font-medium"><strong>Feedback:</strong></span>
                   <p className="text-gray-700">{qa.feedback}</p>
                 </div>
                 
                 <div>
-                  <span className="font-medium">Improvement Tips:</span>
-                  <p className="text-gray-700">{qa.improvementTips}</p>
+                  <span className="font-medium"><strong>Improvement Tips:</strong></span>
+                  <div className="text-gray-700 mt-1">
+                    {formatImprovementTips(qa.improvementTips).map((tip, i) => (
+                      <div key={i} className="mb-2">
+                        {i > 0 && <hr className="my-2 border-gray-200" />}
+                        <div dangerouslySetInnerHTML={{ __html: tip }} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -214,4 +237,4 @@ const Analytics = () => {
   );
 };
 
-export default Analytics; 
+export default Analytics;

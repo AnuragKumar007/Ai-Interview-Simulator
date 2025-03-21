@@ -11,10 +11,10 @@ const footer = () =>{
                 {/* <a href="">Contact Us</a> */}
                 <NavLink to="/contact">Contact Us</NavLink>
                 <a href="">Support & How-to Videos</a>
-                <a href="">Popular Job Roles</a>
-                <a href="">Privacy Policy</a>
-                <a href="">Terms of Service</a>
-                <a href="">FAQ</a>
+                <NavLink to="/job-roles">Popular Job Roles</NavLink>
+                <NavLink to="/privacy">Privacy Policy</NavLink>
+                <NavLink to="/terms">Terms of Service</NavLink>
+                <NavLink to="/faq">FAQ</NavLink>
             </div>
             <div className="flex space-x-16 mt-12">
                 <FontAwesomeIcon className='text-2xl' icon={faFacebook} />
@@ -23,7 +23,7 @@ const footer = () =>{
                 <FontAwesomeIcon className='text-2xl' icon={faInstagram} />
             </div>
             <div className="mt-12 text-sm">
-                <p>© 2025 Interview Papa, All Rights Reserved. | Lucknow, Uttar Pradesh, IN 226017</p>
+                <p>© 2025 Interview Buddy, All Rights Reserved. | Lucknow, Uttar Pradesh, IN 226017</p>
             </div>
         </footer>
     )
