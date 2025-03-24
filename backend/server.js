@@ -16,6 +16,11 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 app.use(express.json());
 
+// Add this before MongoDB connection attempt
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'API running', env: process.env.NODE_ENV });
+});
+
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Interview-Simulator';
 mongoose.connect(MONGODB_URI, {
@@ -23,7 +28,10 @@ mongoose.connect(MONGODB_URI, {
     useUnifiedTopology: true
 })
 .then(() => console.log('MongoDB connected successfully'))
-.catch((err) => console.error('MongoDB connection error:', err));
+.catch((err) => {
+    console.error('MongoDB connection error:', err);
+    // Still allow server to start for debugging
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
