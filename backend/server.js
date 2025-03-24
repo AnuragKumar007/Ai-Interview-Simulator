@@ -38,7 +38,11 @@ mongoose.connect(MONGODB_URI, {
 })
 .then(() => console.log('MongoDB connected successfully'))
 .catch((err) => {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error details:', {
+        message: err.message,
+        reason: err.reason,
+        code: err.code
+    });
     // Still allow server to start for debugging
 });
 
