@@ -5,7 +5,7 @@ import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import Button from "../button";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 
 const Signup = () => {
     const navigate = useNavigate();
@@ -108,11 +108,12 @@ const Signup = () => {
 
         try {
             // Send signup data to backend
-            const response = await axios.post('http://localhost:8080/api/auth/signup', {
+            const userData = {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password
-            });
+            };
+            const response = await authAPI.signup(userData);
 
             // Handle successful signup
             console.log('Signup successful:', response.data);

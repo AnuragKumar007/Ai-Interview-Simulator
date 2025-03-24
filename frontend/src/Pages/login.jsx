@@ -3,7 +3,7 @@ import { faFacebook, faGoogle } from "@fortawesome/free-brands-svg-icons";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
+import { authAPI } from "../services/api";
 
 
 import Button from "../button";
@@ -32,10 +32,7 @@ const login = () => {
         }
         try{
             console.log("try")
-            const response = await axios.post('http://localhost:5000/api/auth/login', {
-                email,
-                password
-            })
+            const response = await authAPI.login(email, password);
             // console.log('Login successful:', response.data);
             navigate('/');
         }catch (error) {

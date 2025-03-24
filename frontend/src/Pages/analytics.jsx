@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { interviewAPI } from '../services/api';
 
 // Helper function to format improvement tips
 const formatImprovementTips = (tips) => {
@@ -69,7 +69,7 @@ const Analytics = () => {
         setLoading(true);
         
         // Make actual API call to backend
-        const response = await axios.post('http://localhost:8080/api/services/analyzeInterview', {
+        const response = await interviewAPI.analyzeInterview({
           questions: interviewData.questions,
           recordings: interviewData.recordings,
           jobDescription: jobDescription

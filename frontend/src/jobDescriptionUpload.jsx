@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { interviewAPI } from './services/api';
 
 import './jobDescriptionUpload.css';
 
@@ -25,9 +25,7 @@ const JobDescriptionUpload = ({ setQuestions }) => {
 
     try {
       setUploadStatus('Submitting...');
-      const response = await axios.post('http://localhost:8080/api/services/questionGenerator', {
-        description: jobDescription,
-      });
+      const response = await interviewAPI.generateQuestions(jobDescription);
       
       if (!response.data || !response.data.questions) {
         throw new Error('Invalid response format - missing questions');

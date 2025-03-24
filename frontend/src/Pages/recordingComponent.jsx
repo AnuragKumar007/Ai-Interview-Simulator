@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import { interviewAPI } from '../services/api';
 
 const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecording }) => {
   // State variables to manage component behavior
@@ -254,7 +254,7 @@ const RecordingComponent = ({ questionIndex, onRecordingComplete, initialRecordi
         
         // Send to backend for Gemini analysis
         try {
-          const response = await axios.post('http://localhost:8080/api/services/analyzeInterview', {
+          const response = await interviewAPI.analyzeInterview({
             questions: [`Question ${questionIndex + 1}`], // Just use a placeholder
             recordings: [{
               questionIndex: questionIndex,
