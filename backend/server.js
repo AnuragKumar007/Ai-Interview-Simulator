@@ -21,6 +21,15 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'API running', env: process.env.NODE_ENV });
 });
 
+app.get('/api/env-test', (req, res) => {
+  res.json({ 
+    mongoUriExists: !!process.env.MONGODB_URI,
+    // Only show first few characters of sensitive info
+    mongoUriPrefix: process.env.MONGODB_URI ? 
+      process.env.MONGODB_URI.substring(0, 20) + '...' : 'not set'
+  });
+});
+
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Interview-Simulator';
 mongoose.connect(MONGODB_URI, {
